@@ -3,3 +3,5 @@
 /testing-samples/java-test-samples/.aws-sam/
 /testing-samples/java-test-samples/HelloWorldFunction/target/
 /testing-samples/java-test-samples/HelloWorldFunction/*.iml
+/testing-samples/java-test-samples/samconfig.toml
+
