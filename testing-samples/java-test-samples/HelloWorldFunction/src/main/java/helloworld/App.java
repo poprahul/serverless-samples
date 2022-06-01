@@ -1,25 +1,17 @@
 package helloworld;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import com.amazonaws.AmazonServiceException;
-import com.amazonaws.auth.*;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3Client;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Bucket;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Handler for requests to Lambda function.
@@ -36,23 +28,23 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(headers);
 
-        AmazonS3 s3client = AmazonS3ClientBuilder
-                .standard()
-                .withRegion(Regions.DEFAULT_REGION)
+        S3Client s3client = S3Client.builder()
+                .region(Region.US_WEST_2)
+                .httpClient(ApacheHttpClient.create())
                 .build();
 
         StringBuilder output = new StringBuilder("BucketList: ");
 
         try {
-            for(Bucket s : s3client.listBuckets()) {
-                output.append(s.getName()).append('|');
-                System.out.println(s.getName());
+            for(Bucket s : s3client.listBuckets().buckets()) {
+                output.append(s.name()).append('|');
+                System.out.println(s.name());
             }
 
             return response
                     .withStatusCode(200)
                     .withBody(output.toString());
-        } catch (AmazonServiceException e) {
+        } catch (AwsServiceException e) {
             e.printStackTrace();
             return response
                     .withBody("{}")
