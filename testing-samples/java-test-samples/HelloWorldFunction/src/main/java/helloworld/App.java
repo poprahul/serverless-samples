@@ -13,42 +13,34 @@ import software.amazon.awssdk.services.s3.model.Bucket;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Handler for requests to Lambda function.
- */
+import static java.util.stream.Collectors.joining;
+
 public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+  public APIGatewayProxyResponseEvent handleRequest(final APIGatewayProxyRequestEvent input, final Context context) {
+    Map<String, String> headers = new HashMap<>();
+    headers.put("Content-Type", "text/plain");
 
-    private static String bucketName;
+    APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
+      .withHeaders(headers);
 
-    public APIGatewayProxyResponseEvent handleRequest(final APIGatewayProxyRequestEvent input, final Context context) {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Content-Type", "application/json");
-        headers.put("X-Custom-Header", "application/json");
+    S3Client s3client = S3Client.builder()
+      .region(Region.of(System.getenv("AWS_REGION")))
+      .httpClient(ApacheHttpClient.create())
+      .build();
 
-        APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
-                .withHeaders(headers);
+    try {
+      String output = s3client.listBuckets().buckets().stream()
+        .map(Bucket::name)
+        .collect(joining("|"));
 
-        S3Client s3client = S3Client.builder()
-                .region(Region.US_WEST_2)
-                .httpClient(ApacheHttpClient.create())
-                .build();
-
-        StringBuilder output = new StringBuilder("BucketList: ");
-
-        try {
-            for(Bucket s : s3client.listBuckets().buckets()) {
-                output.append(s.name()).append('|');
-                System.out.println(s.name());
-            }
-
-            return response
-                    .withStatusCode(200)
-                    .withBody(output.toString());
-        } catch (AwsServiceException e) {
-            e.printStackTrace();
-            return response
-                    .withBody("{}")
-                    .withStatusCode(500);
-        }
+      return response
+        .withStatusCode(200)
+        .withBody(output);
+    } catch (AwsServiceException e) {
+      e.printStackTrace();
+      return response
+        .withBody("{}")
+        .withStatusCode(500);
     }
+  }
 }
