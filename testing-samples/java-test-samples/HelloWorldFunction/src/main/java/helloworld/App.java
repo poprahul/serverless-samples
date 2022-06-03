@@ -16,17 +16,25 @@ import java.util.Map;
 import static java.util.stream.Collectors.joining;
 
 public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+  private final S3Client s3client;
+
+  App() {
+    this(null);
+  }
+
+  App(S3Client s3Client) {
+    s3client = s3Client != null ? s3Client : S3Client.builder()
+      .region(Region.of(System.getenv("AWS_REGION")))
+      .httpClient(ApacheHttpClient.create())
+      .build();
+  }
+
   public APIGatewayProxyResponseEvent handleRequest(final APIGatewayProxyRequestEvent input, final Context context) {
     Map<String, String> headers = new HashMap<>();
     headers.put("Content-Type", "text/plain");
 
     APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
       .withHeaders(headers);
-
-    S3Client s3client = S3Client.builder()
-      .region(Region.of(System.getenv("AWS_REGION")))
-      .httpClient(ApacheHttpClient.create())
-      .build();
 
     try {
       String output = s3client.listBuckets().buckets().stream()

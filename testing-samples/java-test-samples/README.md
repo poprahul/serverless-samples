@@ -16,7 +16,7 @@ This project contains automated test sample code samples for serverless applicat
 - [Run an integration test against cloud resources](#run-integration-tests-against-cloud-resources)
 - [Invoke a Lambda function in the cloud](#invoke-a-lambda-function-in-the-cloud)
 - [Fetch, tail, and filter Lambda function logs locally](#fetch-tail-and-filter-lambda-function-logs-locally)
-- [Use SAM Accerate to speed up feedback cycles](#use-sam-accerate-to-speed-up-feedback-cycles)
+- [Use SAM Accelerate to speed up feedback cycles](#use-sam-accelerate-to-speed-up-feedback-cycles)
 - [Perform a load test](#perform-a-load-test)
 - [Implement application tracing](#implement-application-tracing)
 - [Cleanup](#cleanup)
@@ -147,13 +147,71 @@ HelloWorldFunction$ mvn test
 [[top]](#java-test-samples)
 
 ## Run a unit test using a mock framework
-`<TODO>`
+You can use mocking frameworks like [Mockito](https://site.mockito.org/) to mock the service calls that are being done in the Lambda function.
+[`AppWithMockTest.java`](/HelloWorldFunction/src/test/java/helloworld/AppWithMockTest.java) covers this example:
+
+```java
+@ExtendWith(MockitoExtension.class)
+public class AppWithMockTest { 
+  private static S3Client s3Client;
+
+  @BeforeEach
+  public void setup() {
+    s3Client = mock(S3Client.class);
+    Bucket bucket = mock(Bucket.class);
+    when(bucket.name()).thenReturn("foo");
+    lenient().when(s3Client.listBuckets())
+      .thenReturn(ListBucketsResponse.builder().buckets(bucket).build());
+  }
+
+  @Test
+  public void successfulResponse() {
+    App app = new App(s3Client);
+    APIGatewayProxyResponseEvent result = app.handleRequest(null, null);
+    assertEquals(200, result.getStatusCode().intValue());
+    assertEquals("text/plain", result.getHeaders().get("Content-Type"));
+    String content = result.getBody();
+    assertNotNull(content);
+    assertTrue(content.length() > 0);
+    assertEquals("foo", content);
+  }
+}
+```
 
 
 [[top]](#java-test-samples)
 
 ## Run integration tests against cloud resources
-`<TODO>`
+In order to run integration tests, you can use [Testcontainers and Localstack](https://www.testcontainers.org/modules/localstack/) which needs Docker engine running.
+
+[`AppIntegrationTest.java`](/HelloWorldFunction/src/test/java/helloworld/AppIntegrationTest.java) shows the exact implementation. Important sections to look at are:
+
+
+```java
+private static final DockerImageName localStackImage =
+  DockerImageName.parse("localstack/localstack:0.14.3");
+
+@Rule
+public static final LocalStackContainer localstack = 
+  new LocalStackContainer(localStackImage).withServices(S3);
+
+@BeforeAll
+static void setup() {
+  localstack.start();
+
+  s3Client = S3Client
+    .builder()
+    .endpointOverride(localstack.getEndpointOverride(LocalStackContainer.Service.S3))
+    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(
+      localstack.getAccessKey(), localstack.getSecretKey()
+    )))
+    .region(Region.of(localstack.getRegion()))
+    .build();
+
+  s3Client.createBucket(b -> b.bucket("foo"));
+  s3Client.createBucket(b -> b.bucket("bar"));
+}
+```
 
 
 [[top]](#java-test-samples)
@@ -187,7 +245,7 @@ You can find more information and examples about filtering Lambda function logs 
 
 [[top]](#java-test-samples)
 
-## Use SAM Accerate to speed up feedback cycles
+## Use SAM Accelerate to speed up feedback cycles
 AWS SAM Accelerate is a set of features that reduces deployment latency and enable developers to test their code quickly against production AWS services in the cloud.
 [Read the blog post](https://aws.amazon.com/blogs/compute/accelerating-serverless-development-with-aws-sam-accelerate/)
 
